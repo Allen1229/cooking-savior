@@ -237,7 +237,7 @@
         case A.BACK_TO_RESULTS:
           return { ...state, selectedRecipe: null, currentStep: 'results' };
         case A.SET_ERROR:
-          return { ...state, error: action.message, currentStep: action.step || state.currentStep };
+          return { ...state, error: action.error || action.message, currentStep: action.step || state.currentStep };
         case A.RESET:
           return { ...initialState };
         default:
