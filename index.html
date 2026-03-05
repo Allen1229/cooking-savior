@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>料理救星 – AI 主廚為您拯救晚餐</title>
+  <meta name="description" content="拍下冰箱裡的食材，AI 主廚立刻設計三道救援食譜，解決你的晚餐焦慮！" />
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'Noto Sans TC', 'sans-serif'] },
+          animation: { 'fade-in': 'fadeIn 0.4s cubic-bezier(0.2,0.8,0.2,1) forwards' },
+          keyframes: { fadeIn: { from: { opacity: 0, transform: 'translateY(10px)' }, to: { opacity: 1, transform: 'translateY(0)' } } },
+        },
+      },
+    };
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap"
+    rel="stylesheet" />
+
+  <!-- React 18 (CDN) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .line-clamp-4 {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 m-0 p-0">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // =========================================================================
+    // Inline SVG Icon Components (replacing lucide-react for CDN compatibility)
+    // =========================================================================
+    const Icon = ({ children, className = "w-6 h-6", ...props }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+        {children}
+      </svg>
+    );
+
+    const Camera = (p) => <Icon {...p}><path d="M14.5 4h-5L7 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></Icon>;
+    const Flame = (p) => <Icon {...p}><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" /></Icon>;
+    const ChefHat = (p) => <Icon {...p}><path d="M6 13.87A4 4 0 017.41 6a5.11 5.11 0 011.05-1.54 5 5 0 017.08 0A5.11 5.11 0 0116.59 6 4 4 0 0118 13.87V21H6z" /><line x1="6" y1="17" x2="18" y2="17" /></Icon>;
+    const ArrowRight = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Icon>;
+    const RefreshCw = (p) => <Icon {...p}><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" /></Icon>;
+    const XIcon = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>;
+    const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+    const Utensils = (p) => <Icon {...p}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2" /><path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" /></Icon>;
+    const AlertCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></Icon>;
+    const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></Icon>;
+    const ClockIcon = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>;
+    const Award = (p) => <Icon {...p}><circle cx="12" cy="8" r="6" /><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" /></Icon>;
+    const CheckCircle = (p) => <Icon {...p}><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></Icon>;
+    const ExternalLink = (p) => <Icon {...p}><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></Icon>;
+    const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6" /></Icon>;
+
+    const { useReducer } = React;
+
+    // =========================================================================
+    // Constants & Helpers
+    // =========================================================================
+
+    /**
+     * [優化 #1 – 高] Tailwind 動態 class 修正
+     * Tailwind 在編譯時掃描靜態 class，動態字串拼接（如 `bg-${color}-500`）無法被偵測。
+     * 改用完整 class map 確保所有樣式都能正確產出。
+     */
+    const THEME_MAP = {
+      green: {
+        bg: 'bg-green-500/20', text: 'text-green-400',
+        border: 'border-green-500/30', hoverBorder: 'hover:border-green-400',
+        bgHover: 'hover:bg-green-900/20',
+        ringColor: 'ring-green-500/20',
+        gradient: 'from-green-900/40 via-slate-900/80 to-slate-950',
+        stepBorder: 'border-green-500/30', stepText: 'text-green-400',
+        stepHoverBg: 'group-hover:bg-green-500', stepHoverBorder: 'group-hover:border-green-500',
+        pillBg: 'bg-green-500/20', pillText: 'text-green-400',
+      },
+      orange: {
+        bg: 'bg-orange-500/20', text: 'text-orange-400',
+        border: 'border-orange-500/30', hoverBorder: 'hover:border-orange-400',
+        bgHover: 'hover:bg-orange-900/20',
+        ringColor: 'ring-orange-500/20',
+        gradient: 'from-orange-900/40 via-slate-900/80 to-slate-950',
+        stepBorder: 'border-orange-500/30', stepText: 'text-orange-400',
+        stepHoverBg: 'group-hover:bg-orange-500', stepHoverBorder: 'group-hover:border-orange-500',
+        pillBg: 'bg-orange-500/20', pillText: 'text-orange-400',
+      },
+      red: {
+        bg: 'bg-red-500/20', text: 'text-red-400',
+        border: 'border-red-500/30', hoverBorder: 'hover:border-red-400',
+        bgHover: 'hover:bg-red-900/20',
+        ringColor: 'ring-red-500/20',
+        gradient: 'from-red-900/40 via-slate-900/80 to-slate-950',
+        stepBorder: 'border-red-500/30', stepText: 'text-red-400',
+        stepHoverBg: 'group-hover:bg-red-500', stepHoverBorder: 'group-hover:border-red-500',
+        pillBg: 'bg-red-500/20', pillText: 'text-red-400',
+      },
+    };
+
+    /** 共用函式：根據難度字串取得主題配色與圖示 */
+    const getDifficultyTheme = (difficulty) => {
+      if (difficulty.includes('普通') || difficulty.includes('中等')) {
+        return { color: 'orange', theme: THEME_MAP.orange, icon: <Flame className="w-6 h-6 text-orange-400" /> };
+      }
+      if (difficulty.includes('難度') || difficulty.includes('困難') || difficulty.includes('大廚')) {
+        return { color: 'red', theme: THEME_MAP.red, icon: <ChefHat className="w-6 h-6 text-red-400" /> };
+      }
+      return { color: 'green', theme: THEME_MAP.green, icon: <Zap className="w-6 h-6 text-green-400" /> };
+    };
+
+    /** 廣告設定抽離 */
+    const ADS = [
+      { href: 'https://www.gametower.com.tw/Games/TMD/', imgSrc: 'https://www.gametower.com.tw/images/index/games/pic_TMD.png', name: '滿貫大亨', hoverBorder: 'hover:border-yellow-400' },
+      { href: 'https://www.gametower.com.tw/Games/FreePlay/Mj/star31/', imgSrc: 'https://www.gametower.com.tw/images/index/games/pic_iStar31.png', name: '明星3缺1', hoverBorder: 'hover:border-blue-400' },
+      { href: 'https://www.slam888.com.tw/official', imgSrc: 'https://www.gametower.com.tw/images/index/games/pic_slam888.png', name: '大滿貫娛樂城', hoverBorder: 'hover:border-red-500' },
+      { href: 'https://www.gametower.com.tw/Games/PG/', imgSrc: 'https://www.gametower.com.tw/images/index/games/pic_pg.png', name: '玩星派對', hoverBorder: 'hover:border-purple-500' },
+    ];
+
+    /**
+     * [優化 #3 – 中] 圖片壓縮
+     * 在 canvas 上重繪並壓縮成 JPEG，縮小至最大 1024px 寬。
+     */
+    const compressImage = (file, maxWidth = 1024, quality = 0.8) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('圖片載入失敗')); };
+        img.src = url;
+      });
+    };
+
+    /**
+     * [優化 #6 – 中] JSON 回傳驗證
+     */
+    const validateRecipe = (r) =>
+      r && typeof r.title === 'string' && typeof r.difficulty === 'string' &&
+      typeof r.time === 'string' && typeof r.desc === 'string' &&
+      Array.isArray(r.steps) && r.steps.length > 0 && r.steps.every(s => typeof s === 'string');
+
+    // =========================================================================
+    // [優化 #5 – 中] useReducer 狀態管理
+    // =========================================================================
+
+    const initialState = {
+      currentStep: 'landing',
+      imagesBase64: [],
+      ingredients: [],
+      newIngredient: '',
+      recipes: [],
+      selectedRecipe: null,
+      loadingMessage: '',
+      error: '',
+    };
+
+    const A = {
+      START_ANALYZING: 'SA', APPEND_IMAGES: 'AI', SET_IMAGES: 'SI',
+      SET_INGREDIENTS: 'SIG', APPEND_INGREDIENTS: 'AIG',
+      ADD_INGREDIENT: 'ADD', ADD_INGREDIENT_VAL: 'ADV', REMOVE_INGREDIENT: 'RM',
+      SET_NEW_INGREDIENT: 'SNI', GO_TO_INGREDIENTS: 'GTI',
+      START_COOKING: 'SC', SET_RECIPES: 'SR',
+      SELECT_RECIPE: 'SEL', BACK_TO_RESULTS: 'BTR',
+      SET_ERROR: 'SE', RESET: 'RST',
+    };
+
+    const reducer = (state, action) => {
+      switch (action.type) {
+        case A.START_ANALYZING:
+          return { ...state, currentStep: 'analyzing', loadingMessage: action.message, error: '' };
+        case A.SET_IMAGES:
+          return { ...state, imagesBase64: action.images };
+        case A.APPEND_IMAGES:
+          return { ...state, imagesBase64: [...state.imagesBase64, ...action.images] };
+        case A.SET_INGREDIENTS:
+          return { ...state, ingredients: action.items, currentStep: 'ingredients' };
+        case A.APPEND_INGREDIENTS:
+          return { ...state, ingredients: Array.from(new Set([...state.ingredients, ...action.items])), currentStep: 'ingredients' };
+        case A.ADD_INGREDIENT_VAL:
+          return action.value.trim()
+            ? { ...state, ingredients: [...state.ingredients, action.value.trim()] }
+            : state;
+        case A.ADD_INGREDIENT:
+          return state.newIngredient.trim()
+            ? { ...state, ingredients: [...state.ingredients, state.newIngredient.trim()], newIngredient: '' }
+            : state;
+        case A.REMOVE_INGREDIENT: {
+          const l = [...state.ingredients]; l.splice(action.index, 1); return { ...state, ingredients: l };
+        }
+        case A.SET_NEW_INGREDIENT:
+          return { ...state, newIngredient: action.value };
+        case A.GO_TO_INGREDIENTS:
+          return { ...state, currentStep: 'ingredients' };
+        case A.START_COOKING:
+          return { ...state, currentStep: 'cooking', loadingMessage: '正在計算最佳美味救援方案...', error: '' };
+        case A.SET_RECIPES:
+          return { ...state, recipes: action.recipes, currentStep: 'results' };
+        case A.SELECT_RECIPE:
+          return { ...state, selectedRecipe: action.recipe, currentStep: 'detail' };
+        case A.BACK_TO_RESULTS:
+          return { ...state, selectedRecipe: null, currentStep: 'results' };
+        case A.SET_ERROR:
+          return { ...state, error: action.message, currentStep: action.step || state.currentStep };
+        case A.RESET:
+          return { ...initialState };
+        default:
+          return state;
+      }
+    };
+
+    // =========================================================================
+    // Sub-Components (Top-level to prevent remounting)
+    // =========================================================================
+
+    const LandingPage = React.memo(({ onUpload, onManual }) => (
+      <div className="flex flex-col items-center justify-center h-full text-center space-y-8 animate-fade-in p-6">
+        <div className="relative">
+          <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 rounded-full"></div>
+          <div className="relative bg-gradient-to-br from-orange-600 to-red-600 p-8 rounded-full border-4 border-white/20 shadow-[0_0_40px_rgba(234,88,12,0.4)] transform hover:scale-105 transition-transform duration-500">
+            <ChefHat className="w-20 h-20 text-white" />
+          </div>
+        </div>
+        <div>
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-4 tracking-tight">料理救星</h1>
+          <p className="text-slate-300 text-lg max-w-md mx-auto leading-relaxed">
+            不知道煮什麼？不想出門？<br />
+            <span className="text-orange-400 font-bold">拍下食材</span>，AI 主廚立刻為您端出救援方案！
+          </p>
+        </div>
+        <div className="w-full max-w-sm space-y-4">
+          <label className="group flex flex-col items-center justify-center w-full p-5 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 rounded-2xl cursor-pointer transition-all duration-300 shadow-lg shadow-orange-900/30 transform hover:-translate-y-1">
+            <div className="flex items-center space-x-3">
+              <Camera className="w-6 h-6 text-white" />
+              <span className="text-white font-bold text-lg">拍攝食材 / 上傳照片</span>
+            </div>
+            <div className="text-orange-200 text-xs mt-1 font-medium bg-red-800/30 px-2 py-0.5 rounded-full">支援多張照片</div>
+            <input type="file" className="hidden" accept="image/*" multiple onChange={onUpload} />
+          </label>
+          <button onClick={onManual} className="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl text-slate-300 hover:text-white font-medium transition-colors flex items-center justify-center space-x-2 border border-slate-700">
+            <Utensils className="w-5 h-5" />
+            <span>手動輸入食材</span>
+          </button>
+        </div>
+      </div>
+    ));
+
+    const LoadingPage = React.memo(({ message }) => (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
+        <div className="relative w-32 h-32 mb-8">
+          <div className="absolute inset-0 border-4 border-t-orange-500 border-r-transparent border-b-red-600 border-l-transparent rounded-full animate-spin"></div>
+          <div className="absolute inset-4 bg-slate-800 rounded-full flex items-center justify-center">
+            <Flame className="w-12 h-12 text-orange-500 animate-pulse" />
+          </div>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">{message}</h2>
+        <p className="text-slate-400">正在連接雲端食譜資料庫...</p>
+      </div>
+    ));
+
+    const IngredientsPage = React.memo(({ ingredients, error, onUpload, onRemove, onAddIngredient, onGenerate, onReset }) => {
+      const [localValue, setLocalValue] = React.useState('');
+      const inputRef = React.useRef(null);
+
+      // 強制保持焦點，解決在某些環境下 (如 browser automation) 的失焦問題
+      React.useEffect(() => {
+        if (inputRef.current) inputRef.current.focus();
+      });
+
+      const handleAdd = () => {
+        if (localValue.trim()) {
+          onAddIngredient(localValue.trim());
+          setLocalValue('');
+        }
+      };
+
+      return (
+        <div className="flex flex-col lg:flex-row h-full w-full max-w-6xl mx-auto overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-none p-6 pb-2">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Utensils className="w-6 h-6 text-orange-500" /> 確認庫存食材
+                </h2>
+                <label className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-orange-400 px-3 py-1.5 rounded-full border border-slate-600 cursor-pointer transition-colors">
+                  <Camera className="w-3 h-3" /><span>再拍一張</span>
+                  <input type="file" className="hidden" accept="image/*" multiple onChange={onUpload} />
+                </label>
+              </div>
+              <p className="text-slate-400 text-sm">
+                {ingredients.length > 0 ? `AI 目前掃描到 ${ingredients.length} 種食材，若有遺漏請繼續拍照或手動補充。` : '這裡看起來空空的，手動告訴我有哪些食材吧！'}
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {ingredients.map((item, idx) => (
+                  <div key={idx} className="flex items-center bg-slate-800 text-slate-200 px-4 py-2 rounded-lg border border-slate-700 group hover:border-orange-500 transition-colors shadow-sm animate-fade-in">
+                    <span className="font-medium">{item}</span>
+                    <button onClick={() => onRemove(idx)} className="ml-2 text-slate-500 hover:text-red-400 rounded-full">
+                      <XIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {ingredients.length === 0 && <div className="text-slate-500 italic p-8 w-full text-center border-2 border-dashed border-slate-800 rounded-xl">等待輸入食材...</div>}
+              </div>
+              <div className="flex gap-2 mt-4">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={localValue}
+                  onChange={e => setLocalValue(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+                  placeholder="手動輸入，例如：半顆洋蔥..."
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-500 transition-all font-medium"
+                />
+                <button
+                  onClick={handleAdd}
+                  disabled={!localValue.trim()}
+                  className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-colors"
+                  title="新增食材"
+                >
+                  <Plus className="w-6 h-6" />
+                </button>
+              </div>
+              {error && <div className="flex items-center gap-2 text-red-200 bg-red-900/30 p-4 rounded-xl border border-red-800/50"><AlertCircle className="w-5 h-5 flex-none" /><span className="text-sm font-medium">{error}</span></div>}
+            </div>
+
+            <div className="flex-none p-6 pt-4 border-t border-slate-800 flex justify-between items-center bg-slate-900">
+              <button onClick={onReset} className="text-slate-400 hover:text-white px-4 py-2 transition-colors text-sm font-medium">重新開始</button>
+              <button onClick={onGenerate} disabled={ingredients.length === 0} className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 disabled:opacity-50 disabled:grayscale text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-orange-900/40 flex items-center gap-2 transform active:scale-95 transition-all">
+                <Flame className="w-5 h-5" /> 生成救援食譜
+              </button>
+            </div>
+          </div>
+
+          <div className="flex lg:flex-col lg:w-[200px] items-center gap-5 p-4 lg:p-6 lg:pt-10 border-t lg:border-t-0 lg:border-l border-slate-800/50 bg-gradient-to-r lg:bg-gradient-to-b from-slate-900/40 to-slate-950/80 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto w-full lg:h-full flex-none">
+            <div className="flex flex-col items-center w-full mb-2">
+              <div className="flex items-center gap-1.5 text-orange-400 mb-2">
+                <Award className="w-5 h-5 animate-pulse text-yellow-400" />
+                <span className="text-[15px] font-black tracking-widest drop-shadow-[0_0_8px_rgba(251,146,60,0.8)]">推薦遊戲</span>
+                <Award className="w-5 h-5 animate-pulse text-yellow-400" />
+              </div>
+              <div className="h-0.5 w-16 bg-gradient-to-r from-transparent via-orange-500 to-transparent"></div>
+            </div>
+            <div className="flex lg:flex-col gap-6 lg:gap-6 mt-2">
+              {ADS.map((ad, i) => (
+                <a key={i} href={ad.href} target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-2.5 flex-none outline-none">
+                  <div className={`w-[85px] h-[85px] lg:w-[110px] lg:h-[110px] rounded-2xl overflow-hidden shadow-lg border-2 border-slate-700 ${ad.hoverBorder} transition-all transform group-hover:scale-105 group-hover:-translate-y-1 relative bg-slate-800`}>
+                    <img src={ad.imgSrc} alt={ad.name} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity scale-50 group-hover:scale-100 transform duration-300">
+                      <div className="bg-black/50 p-2 rounded-full backdrop-blur-sm"><ExternalLink className="w-5 h-5 text-white" /></div>
+                    </div>
+                  </div>
+                  <span className="text-[13px] font-black text-slate-400 group-hover:text-white transition-colors tracking-wide text-center px-1 drop-shadow-md">{ad.name}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    });
+
+    const ResultsPage = React.memo(({ recipes, onSelect, onReset }) => (
+      <div className="flex flex-col h-full animate-fade-in max-w-5xl mx-auto w-full relative">
+        <div className="flex-none p-6 pb-4">
+          <h2 className="text-3xl font-black text-white mb-2 flex items-center gap-3"><ChefHat className="w-8 h-8 text-orange-500" /> 救援方案已送達</h2>
+          <p className="text-slate-400">主廚為您規劃了三條美味路徑，點擊卡片查看詳細作戰計畫！</p>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 pt-0 grid gap-6 md:grid-cols-3 pb-24">
+          {recipes.map((recipe, idx) => {
+            const { theme, icon } = getDifficultyTheme(recipe.difficulty);
+            return (
+              <div key={idx} onClick={() => onSelect(recipe)}
+                className={`relative flex flex-col bg-slate-800/80 rounded-3xl border-2 ${theme.border} ${theme.hoverBorder} overflow-hidden cursor-pointer transform hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 group p-6 ${theme.bgHover} h-full min-h-[420px]`}>
+                <div className="flex justify-between items-start mb-4 flex-none">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-3 rounded-2xl ${theme.bg} shadow-inner`}>{icon}</div>
+                    <div className="flex gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">EST. TIME</span>
+                        <div className="flex items-center gap-1.5 text-slate-200 font-bold font-mono text-[15px]"><ClockIcon className="w-3.5 h-3.5 text-slate-400" /> {recipe.time}</div>
+                      </div>
+                      <div className="w-px h-8 bg-slate-700/60 mt-1"></div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">STEPS</span>
+                        <div className="flex items-center gap-1.5 text-slate-200 font-bold font-mono text-[15px]"><CheckCircle className="w-3.5 h-3.5 text-slate-400" /> {recipe.steps?.length || 0} 步</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                  <h3 className="text-2xl font-black text-white mb-3 leading-tight group-hover:text-orange-400 transition-colors line-clamp-2 flex-none">{recipe.title}</h3>
+                  <p className="text-slate-400 leading-relaxed mb-4 text-sm border-l-2 border-slate-700 pl-3 line-clamp-4 overflow-hidden">{recipe.desc}</p>
+                </div>
+                <div className="pt-4 border-t border-slate-700/50 flex items-center justify-between mt-auto flex-none">
+                  <div className={`px-3 py-1 rounded-lg text-xs font-bold ${theme.pillBg} ${theme.pillText}`}>{recipe.difficulty}</div>
+                  <div className="flex items-center gap-1 text-slate-300 text-sm font-bold group-hover:text-white group-hover:translate-x-1 transition-all">開始料理 <ArrowRight className="w-4 h-4" /></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="absolute bottom-6 right-6 z-50">
+          <button onClick={onReset} className="bg-slate-700 hover:bg-slate-600 text-white rounded-full p-4 shadow-lg transition-all hover:rotate-90 transform active:scale-95 border border-slate-600" title="重新開始"><RefreshCw className="w-6 h-6" /></button>
+        </div>
+      </div>
+    ));
+
+    const DetailPage = React.memo(({ selectedRecipe, onBack }) => {
+      if (!selectedRecipe) return null;
+      const { theme, color, icon: lg } = getDifficultyTheme(selectedRecipe.difficulty);
+
+      return (
+        <div className="flex flex-col h-full animate-fade-in w-full bg-slate-950 relative overflow-hidden">
+          <div className={`absolute top-0 left-0 w-full h-[50vh] bg-gradient-to-b ${theme.gradient} pointer-events-none`}></div>
+          <div className="flex-none p-4 z-20 flex items-center gap-4 bg-slate-900/90 backdrop-blur-md sticky top-0 border-b border-white/5">
+            <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white"><ChevronLeft className="w-6 h-6" /></button>
+            <h2 className="text-lg font-bold text-white truncate flex-1">{selectedRecipe.title}</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-0 pb-10 z-10 relative">
+            <div className="max-w-3xl mx-auto px-6 pt-10">
+              <div className="text-center mb-12">
+                <div className={`inline-flex items-center justify-center p-6 rounded-full bg-slate-800/80 mb-6 ring-4 ${theme.ringColor} shadow-2xl`}>{lg}</div>
+                <h1 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight">{selectedRecipe.title}</h1>
+                <div className="flex justify-center flex-wrap gap-4 mb-8">
+                  <div className="flex items-center gap-3 bg-slate-800/60 px-5 py-3 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
+                    <div className="p-1.5 bg-blue-500/20 rounded-lg text-blue-400"><ClockIcon className="w-5 h-5" /></div>
+                    <div className="text-left"><div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">TIME</div><div className="text-slate-200 font-bold">{selectedRecipe.time}</div></div>
+                  </div>
+                  <div className="flex items-center gap-3 bg-slate-800/60 px-5 py-3 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
+                    <div className={`p-1.5 ${theme.pillBg} rounded-lg ${theme.pillText}`}><Award className="w-5 h-5" /></div>
+                    <div className="text-left"><div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">LEVEL</div><div className="text-slate-200 font-bold">{selectedRecipe.difficulty}</div></div>
+                  </div>
+                </div>
+                <p className="text-slate-300 italic text-lg leading-relaxed bg-slate-800/30 p-6 rounded-2xl border-t-4 border-orange-500 shadow-lg">"{selectedRecipe.desc}"</p>
+              </div>
+              <div className="space-y-10">
+                <div className="flex items-center gap-4 mb-6"><div className="h-10 w-1.5 bg-gradient-to-b from-orange-500 to-red-600 rounded-full"></div><h3 className="text-2xl font-black text-white tracking-wide">作戰步驟</h3></div>
+                <div className="space-y-8 relative">
+                  <div className="absolute left-[27px] top-4 bottom-4 w-0.5 bg-slate-800 -z-10"></div>
+                  {selectedRecipe.steps.map((step, idx) => (
+                    <div key={idx} className="flex gap-6 group">
+                      <div className="flex-none">
+                        <div className={`w-14 h-14 rounded-2xl bg-slate-900 border-2 ${theme.stepBorder} flex items-center justify-center ${theme.stepText} font-black text-xl ${theme.stepHoverBg} group-hover:text-white ${theme.stepHoverBorder} transition-all shadow-xl`}>{idx + 1}</div>
+                      </div>
+                      <div className="bg-slate-800/40 rounded-2xl p-6 border border-white/5 flex-1 hover:bg-slate-800 hover:border-white/10 transition-all">
+                        <p className="text-slate-200 leading-relaxed text-lg font-medium">{step}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-16 mb-10 text-center p-10 bg-gradient-to-br from-green-900/20 to-emerald-900/10 rounded-3xl border border-green-500/10">
+                <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4 opacity-80" />
+                <h4 className="text-2xl font-black text-white mb-2 tracking-tight">任務完成預感！</h4>
+                <p className="text-green-300/70 text-lg">跟著這些步驟，今天的晚餐絕對是五星級水準。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    });
+
+    // =========================================================================
+    // Main Component
+    // =========================================================================
+
+    const CookingSavior = () => {
+      const [state, dispatch] = useReducer(reducer, initialState);
+      const { currentStep, ingredients, recipes, selectedRecipe, loadingMessage, error } = state;
+
+      const API_KEY = window.__GEMINI_API_KEY__ || '';
+      // 部署到 Github 後透過 Cloudflare 代理，此處設定 true 就不會在瀏覽器暴露金鑰
+      const USE_PROXY = true;
+
+      const handleRemove = React.useCallback(idx => dispatch({ type: A.REMOVE_INGREDIENT, index: idx }), []);
+      const handleAddVal = React.useCallback(val => dispatch({ type: A.ADD_INGREDIENT_VAL, value: val }), []);
+      const handleReset = React.useCallback(() => dispatch({ type: A.RESET }), []);
+      const handleManual = React.useCallback(() => dispatch({ type: A.GO_TO_INGREDIENTS }), []);
+
+      const callGemini = async (prompt, images = [], jsonMode = false) => {
+        if (!USE_PROXY && !API_KEY) throw new Error('未設定 API Key');
+
+        const parts = [{ text: prompt }];
+        if (images?.length > 0) images.forEach(b64 => parts.push({ inlineData: { mimeType: 'image/jpeg', data: b64.split(',')[1] } }));
+
+        const payload = {
+          contents: [{ parts }],
+          generationConfig: jsonMode ? { responseMimeType: 'application/json' } : {},
+        };
+
+        const requestUrl = USE_PROXY
+          ? '/api/gemini'
+          : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+
+        const resp = await fetch(requestUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(`API Error: ${resp.status}`);
+        const data = await resp.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error('No content generated');
+        return text;
+      };
+
+      const handleFileUpload = async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+        try {
+          const results = await Promise.all(files.map(f => compressImage(f)));
+          if (currentStep === 'ingredients') {
+            dispatch({ type: A.APPEND_IMAGES, images: results });
+            analyzeImages(results, true);
+          } else {
+            dispatch({ type: A.SET_IMAGES, images: results });
+            analyzeImages(results, false);
+          }
+        } catch (err) {
+          dispatch({ type: A.SET_ERROR, message: '圖片處理失敗' });
+        }
+        e.target.value = '';
+      };
+
+      const analyzeImages = async (b64Arr, isAppend = false) => {
+        dispatch({ type: A.START_ANALYZING, message: isAppend ? '正在分析照片...' : 'AI 主廚正在掃描照片中的食材...' });
+        try {
+          const prompt = '請觀察照片辨識食材，回傳 JSON：{ "items": ["食材1", "食材2"] }';
+          const resultText = await callGemini(prompt, b64Arr, true);
+          const resultJson = JSON.parse(resultText);
+          if (resultJson.items?.length > 0) {
+            dispatch({ type: isAppend ? A.APPEND_INGREDIENTS : A.SET_INGREDIENTS, items: resultJson.items });
+          } else {
+            dispatch({ type: A.GO_TO_INGREDIENTS });
+          }
+        } catch (err) {
+          dispatch({ type: A.SET_ERROR, message: '分析失敗，請手動輸入', step: 'ingredients' });
+        }
+      };
+
+      const generateRecipes = async () => {
+        if (!ingredients.length) return;
+        dispatch({ type: A.START_COOKING });
+        try {
+          const prompt = `使用食材：${ingredients.join(', ')}。
+你現在是一位追求極致精確、近乎強迫症的頂級 AI 主廚。請設計剛好 3 道食譜，嚴格對應「簡單」、「普通」、「難度」。
+
+**【硬性規定：作戰步驟必須數值化】**
+你必須確保**每一個步驟**都包含具體的數字指標，不允許出現「少許」、「適量」或「切塊」等模糊字眼。
+1. **精確度量**：必須標註克數 (g)、公分 (cm)、茶匙 (tsp) 或大匙 (tbsp)。例如：「將牛肉切成 3 公分見方」、「加入 5g 的鹽」。
+2. **精確計時**：必須標註分鐘 (min) 或秒 (s)。例如：「中火翻炒 120 秒」、「小火悶煮 15 分鐘」。
+3. **具體規格**：描述食材處理的物理尺寸。例如：「洋蔥切成 0.5 公分寬的細絲」。
+
+**輸出結構：**
+回傳 JSON 陣列，每個食譜含有：title, difficulty (只能填寫「簡單」、「普通」或「難度」), time, desc, steps (字串陣列)。
+若未達成上述數值化要求，會被視為任務失敗。直接回傳 JSON，不要廢話。`;
+          const resultText = await callGemini(prompt, [], true);
+          // 容錯處理：移除 markdown 標籤並尋找第一個 [
+          let clean = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const startIdx = clean.indexOf('[');
+          const endIdx = clean.lastIndexOf(']');
+          if (startIdx !== -1 && endIdx !== -1) {
+            clean = clean.substring(startIdx, endIdx + 1);
+          }
+          const parsed = JSON.parse(clean);
+          console.log('Raw Parsed JSON:', parsed);
+          const list = Array.isArray(parsed) ? parsed : (parsed.recipes || parsed.items || []);
+          console.log('Extracted List:', list);
+
+          // 強制標準化難度關鍵字
+          list.forEach((item, index) => {
+            console.log(`Validating Item ${index}:`, item);
+            if (typeof item.difficulty === 'string') {
+              if (item.difficulty.includes('簡單')) item.difficulty = '簡單';
+              else if (item.difficulty.includes('普通') || item.difficulty.includes('中等')) item.difficulty = '普通';
+              else if (item.difficulty.includes('難度') || item.difficulty.includes('困難')) item.difficulty = '難度';
+              else item.difficulty = '普通'; // 預防萬一
+            } else {
+              item.difficulty = '普通';
+            }
+          });
+
+          const filtered = list.filter(validateRecipe);
+          if (filtered.length === 0) {
+            console.error('Validation failed. List:', list);
+            throw new Error('產生的食譜格式不正確，AI 回傳的資料結構有誤。請在終端機查看詳細 Log。');
+          }
+          dispatch({ type: A.SET_RECIPES, recipes: filtered });
+        } catch (err) {
+          console.error('Recipes Gen Error:', err);
+          dispatch({ type: A.SET_ERROR, message: `生成失敗: ${err.message || '格式解析錯誤'}`, step: 'ingredients' });
+        }
+      };
+
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-slate-950 font-sans selection:bg-orange-500/30">
+          <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 left-0 w-full h-full bg-slate-950"></div>
+            <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-600/20 rounded-full blur-[100px] opacity-40"></div>
+            <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-red-600/10 rounded-full blur-[80px] opacity-30"></div>
+          </div>
+          <div className="relative z-10 w-full h-screen md:h-[90vh] md:max-w-6xl md:rounded-3xl bg-slate-900/80 backdrop-blur-xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+            {currentStep !== 'landing' && currentStep !== 'detail' && (
+              <header className="flex-none h-16 border-b border-slate-800 flex items-center px-6 justify-between bg-slate-900/90">
+                <div className="flex items-center gap-2 text-orange-500 font-black text-lg tracking-tight"><ChefHat className="w-6 h-6" /><span>料理救星</span></div>
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700"><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span><span className="text-xs text-slate-400 font-medium">AI 廚房運作中</span></div>
+              </header>
+            )}
+            <main className="flex-1 overflow-hidden relative">
+              {currentStep === 'landing' && <LandingPage onUpload={handleFileUpload} onManual={handleManual} />}
+              {(currentStep === 'analyzing' || currentStep === 'cooking') && <LoadingPage message={loadingMessage} />}
+              {currentStep === 'ingredients' && (
+                <IngredientsPage
+                  ingredients={ingredients}
+                  error={error}
+                  onUpload={handleFileUpload}
+                  onRemove={handleRemove}
+                  onAddIngredient={handleAddVal}
+                  onGenerate={generateRecipes}
+                  onReset={handleReset}
+                />
+              )}
+              {currentStep === 'results' && <ResultsPage recipes={recipes} onSelect={r => dispatch({ type: A.SELECT_RECIPE, recipe: r })} onReset={handleReset} />}
+              {currentStep === 'detail' && <DetailPage selectedRecipe={selectedRecipe} onBack={() => dispatch({ type: A.BACK_TO_RESULTS })} />}
+            </main>
+          </div>
+        </div>
+      );
+    };
+
+    // Mount
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<CookingSavior />);
+  </script>
+</body>
+
+</html>
