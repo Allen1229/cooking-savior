@@ -576,56 +576,65 @@
       };
 
       const generateRecipes = async () => {
-        if (!ingredients.length) return;
-        dispatch({ type: A.START_COOKING });
+        if (ingredients.length === 0) return;
+        dispatch({ type: A.SET_LOADING, message: '名廚正在為您量身打造救援方案...' });
+
         try {
-          const prompt = `使用食材：${ingredients.join(', ')}。
-你現在是一位追求極致精確、近乎強迫症的頂級 AI 主廚。請設計剛好 3 道食譜，嚴格對應「簡單」、「普通」、「難度」。
+          const prompt = `你是一位嚴謹的頂級 AI 主廚，請針對食材：[${ingredients.join(', ')}]，精準提供三道食譜。
+          
+          要求：
+          1. 嚴格區分難度：必須剛好為「簡單」、「普通」、「難度」三種。
+          2. 指令嚴謹：食材量化(g, ml, cm, tsp)、烹飪時間精確到分鐘。
+          3. 格式：回傳純 JSON 陣列，每個物件包含：
+             - title: 菜名
+             - difficulty: 必須為 "簡單"、"普通" 或 "難度" 其中之一
+             - time: 預估總時間 (例如 "25 分鐘")
+             - desc: 一句話介紹
+             - ingredients: 包含份量與切法的字串陣列
+             - steps: 包含量化步驟的字串陣列`;
 
-**【硬性規定：作戰步驟必須數值化】**
-你必須確保**每一個步驟**都包含具體的數字指標，不允許出現「少許」、「適量」或「切塊」等模糊字眼。
-1. **精確度量**：必須標註克數 (g)、公分 (cm)、茶匙 (tsp) 或大匙 (tbsp)。例如：「將牛肉切成 3 公分見方」、「加入 5g 的鹽」。
-2. **精確計時**：必須標註分鐘 (min) 或秒 (s)。例如：「中火翻炒 120 秒」、「小火悶煮 15 分鐘」。
-3. **具體規格**：描述食材處理的物理尺寸。例如：「洋蔥切成 0.5 公分寬的細絲」。
+          const responseText = await callGemini(prompt, [], true);
+          console.log("Raw Response:", responseText);
 
-**輸出結構：**
-回傳 JSON 陣列，每個食譜含有：title, difficulty (只能填寫「簡單」、「普通」或「難度」), time, desc, steps (字串陣列)。
-若未達成上述數值化要求，會被視為任務失敗。直接回傳 JSON，不要廢話。`;
-          const resultText = await callGemini(prompt, [], true);
-          // 容錯處理：移除 markdown 標籤並尋找第一個 [
-          let clean = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const startIdx = clean.indexOf('[');
-          const endIdx = clean.lastIndexOf(']');
-          if (startIdx !== -1 && endIdx !== -1) {
-            clean = clean.substring(startIdx, endIdx + 1);
-          }
-          const parsed = JSON.parse(clean);
-          console.log('Raw Parsed JSON:', parsed);
-          const list = Array.isArray(parsed) ? parsed : (parsed.recipes || parsed.items || []);
-          console.log('Extracted List:', list);
-
-          // 強制標準化難度關鍵字
-          list.forEach((item, index) => {
-            console.log(`Validating Item ${index}:`, item);
-            if (typeof item.difficulty === 'string') {
-              if (item.difficulty.includes('簡單')) item.difficulty = '簡單';
-              else if (item.difficulty.includes('普通') || item.difficulty.includes('中等')) item.difficulty = '普通';
-              else if (item.difficulty.includes('難度') || item.difficulty.includes('困難')) item.difficulty = '難度';
-              else item.difficulty = '普通'; // 預防萬一
-            } else {
-              item.difficulty = '普通';
+          let list = [];
+          try {
+            let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const startIdx = cleanJson.indexOf('[');
+            const endIdx = cleanJson.lastIndexOf(']');
+            if (startIdx !== -1 && endIdx !== -1) {
+              cleanJson = cleanJson.substring(startIdx, endIdx + 1);
             }
-          });
-
-          const filtered = list.filter(validateRecipe);
-          if (filtered.length === 0) {
-            console.error('Validation failed. List:', list);
-            throw new Error('產生的食譜格式不正確，AI 回傳的資料結構有誤。請在終端機查看詳細 Log。');
+            list = JSON.parse(cleanJson);
+          } catch (e) {
+            console.error("JSON Parse Error:", e);
+            throw new Error("AI 回傳格式不符合要求");
           }
-          dispatch({ type: A.SET_RECIPES, recipes: filtered });
+
+          if (!Array.isArray(list)) {
+            list = list.recipes || list.items || [];
+          }
+
+          const normalizedData = list.map(item => {
+            let diff = "普通";
+            const d = String(item.difficulty || "");
+            if (d.includes("簡") || d.includes("Easy")) diff = "簡單";
+            else if (d.includes("難") || d.includes("困") || d.includes("Hard")) diff = "難度";
+
+            return {
+              title: item.title || "創意料理",
+              difficulty: diff,
+              time: item.time || "25 分鐘",
+              desc: item.desc || "名廚為您準備的美味方案",
+              ingredients: Array.isArray(item.ingredients) ? item.ingredients : ["適量主要食材"],
+              steps: Array.isArray(item.steps) ? item.steps : ["依個人口味烹飪"]
+            };
+          }).slice(0, 3);
+
+          if (normalizedData.length === 0) throw new Error("未能生成有效食譜");
+          dispatch({ type: A.SET_RECIPES, recipes: normalizedData });
         } catch (err) {
-          console.error('Recipes Gen Error:', err);
-          dispatch({ type: A.SET_ERROR, message: `生成失敗: ${err.message || '格式解析錯誤'}`, step: 'ingredients' });
+          console.error("Recipes Gen Error:", err);
+          dispatch({ type: A.SET_ERROR, error: `生成失敗: ${err.message}` });
         }
       };
 

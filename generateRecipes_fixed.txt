@@ -1,0 +1,66 @@
+      const generateRecipes = async () => {
+        if (ingredients.length === 0) return;
+        dispatch({ type: A.SET_LOADING, message: '名廚正在為您量身打造救援方案...' });
+
+        try {
+          const prompt = `你是一位嚴謹的頂級 AI 主廚，請針對食材：[${ingredients.join(', ')}]，精準提供三道食譜。
+          
+          要求：
+          1. 嚴格區分難度：必須剛好為「簡單」、「普通」、「難度」三種。
+          2. 指令嚴謹：食材量化(g, ml, cm, tsp)、烹飪時間精確到分鐘。
+          3. 格式：回傳純 JSON 陣列，每個物件包含：
+             - title: 菜名
+             - difficulty: 必須為 "簡單"、"普通" 或 "難度" 其中之一
+             - time: 預估總時間 (例如 "25 分鐘")
+             - desc: 一句話介紹
+             - ingredients: 包含份量與切法的字串陣列
+             - steps: 包含量化步驟的字串陣列`;
+
+          const responseText = await callGemini(prompt, [], true);
+          console.log("Raw Response:", responseText);
+
+          let list = [];
+          try {
+            // 嘗試清理並提取 JSON 部分
+            let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const startIdx = cleanJson.indexOf('[');
+            const endIdx = cleanJson.lastIndexOf(']');
+            if (startIdx !== -1 && endIdx !== -1) {
+              cleanJson = cleanJson.substring(startIdx, endIdx + 1);
+            }
+            list = JSON.parse(cleanJson);
+          } catch (e) {
+            console.error("JSON Parse Error:", e);
+            throw new Error("AI 回傳格式不符合要求");
+          }
+
+          if (!Array.isArray(list)) {
+            // 處理可能是物件包陣列的情況
+            list = list.recipes || list.items || [];
+          }
+
+          // 正規化處理，確保 UI 渲染不會報錯
+          const normalizedData = list.map(item => {
+            let diff = "普通";
+            const d = String(item.difficulty || "");
+            if (d.includes("簡") || d.includes("Easy")) diff = "簡單";
+            else if (d.includes("難") || d.includes("困") || d.includes("Hard")) diff = "難度";
+            
+            return {
+              title: item.title || "創意料理",
+              difficulty: diff,
+              time: item.time || "25 分鐘",
+              desc: item.desc || "名廚為您準備的美味方案",
+              ingredients: Array.isArray(item.ingredients) ? item.ingredients : ["適量主要食材"],
+              steps: Array.isArray(item.steps) ? item.steps : ["依個人口味烹飪"]
+            };
+          }).slice(0, 3);
+
+          if (normalizedData.length === 0) throw new Error("未能生成有效食譜");
+
+          dispatch({ type: A.SET_RECIPES, recipes: normalizedData });
+        } catch (err) {
+          console.error("Recipes Gen Error:", err);
+          dispatch({ type: A.SET_ERROR, error: `生成失敗: ${err.message}` });
+        }
+      };
