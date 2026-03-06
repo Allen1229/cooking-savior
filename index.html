@@ -229,7 +229,7 @@
         case A.GO_TO_INGREDIENTS:
           return { ...state, currentStep: 'ingredients' };
         case A.START_COOKING:
-          return { ...state, currentStep: 'cooking', loadingMessage: '正在計算最佳美味救援方案...', error: '' };
+          return { ...state, currentStep: 'cooking', loadingMessage: action.message || '正在計算最佳美味救援方案...', error: '' };
         case A.SET_RECIPES:
           return { ...state, recipes: action.recipes, currentStep: 'results' };
         case A.SELECT_RECIPE:
@@ -582,7 +582,7 @@
 
       const generateRecipes = async () => {
         if (ingredients.length === 0) return;
-        dispatch({ type: A.SET_LOADING, message: '名廚正在為您量身打造救援方案...' });
+        dispatch({ type: A.START_COOKING, message: '名廚正在為您量身打造救援方案...' });
 
         try {
           const prompt = `你是一位嚴謹的頂級 AI 主廚，請針對食材：[${ingredients.join(', ')}]，精準提供三道食譜。
