@@ -14,16 +14,17 @@ export async function onRequest(context) {
         return new Response(null, { headers: corsHeaders });
     }
 
-    // 處理 GET：回傳次數
+    // 處理 GET：回傳次數與 Key 的提示 (Hint)
     if (request.method === "GET") {
         try {
+            const keyHint = API_KEY ? `${API_KEY.slice(0, 4)}...${API_KEY.slice(-4)}` : "未設定";
             if (!KV) {
-                return new Response(JSON.stringify({ count: 0, status: "KV_MISSING" }), {
+                return new Response(JSON.stringify({ count: 0, status: "KV_MISSING", keyHint }), {
                     headers: { ...corsHeaders, "Content-Type": "application/json" }
                 });
             }
             let count = await KV.get(USAGE_KEY) || "0";
-            return new Response(JSON.stringify({ count: parseInt(count), status: "OK" }), {
+            return new Response(JSON.stringify({ count: parseInt(count), status: "OK", keyHint }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" }
             });
         } catch (e) {
