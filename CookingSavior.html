@@ -529,7 +529,7 @@
 
         const requestUrl = USE_PROXY
           ? '/api/gemini'
-          : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+          : `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
         const resp = await fetch(requestUrl, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
@@ -682,6 +682,9 @@
               {currentStep === 'results' && <ResultsPage recipes={recipes} onSelect={r => dispatch({ type: A.SELECT_RECIPE, recipe: r })} onReset={handleReset} />}
               {currentStep === 'detail' && <DetailPage selectedRecipe={selectedRecipe} onBack={() => dispatch({ type: A.BACK_TO_RESULTS })} />}
             </main>
+            <div className="flex-none py-1 px-4 text-[10px] text-slate-600 font-mono text-right bg-slate-900/50">
+              Cooking Savior Build v2.0 | Stable
+            </div>
           </div>
         </div>
       );
