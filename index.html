@@ -321,6 +321,7 @@
 
     const IngredientsPage = React.memo(({ ingredients, usage, error, onUpload, onRemove, onAddIngredient, onGenerate, onReset }) => {
       const [localValue, setLocalValue] = React.useState('');
+      const [inputError, setInputError] = React.useState('');
       const inputRef = React.useRef(null);
 
       // 強制保持焦點，解決在某些環境下 (如 browser automation) 的失焦問題
@@ -328,11 +329,35 @@
         if (inputRef.current) inputRef.current.focus();
       });
 
+      // 食材輸入驗證
+      const validateIngredient = (val) => {
+        if (!val) return '請輸入食材名稱';
+        // 擋純數字
+        if (/^[\d\s.,]+$/.test(val)) return '⚠️ 請輸入食材名稱，而非數字';
+        // 擋純英文字母亂打（允許中英混合如 100g雞肉）
+        if (/^[a-zA-Z]+$/.test(val) && val.length > 2) return '⚠️ 請輸入有效的食材名稱';
+        // 擋純特殊符號
+        if (/^[^\u4e00-\u9fffa-zA-Z0-9]+$/.test(val)) return '⚠️ 請輸入有效的食材名稱，不要使用特殊符號';
+        // 擋連續重複字元 (如 xxxxssss, aaaa)
+        if (/^(.)\1{2,}$/.test(val)) return '⚠️ 請輸入有效的食材名稱';
+        // 擋多組重複 (如 abababab)
+        if (/^(.{1,3})\1{2,}$/.test(val)) return '⚠️ 請輸入有效的食材名稱';
+        // 檢查是否已存在（去重）
+        if (ingredients.some(ing => ing === val)) return '⚠️ 此食材已經加入過了';
+        return '';
+      };
+
       const handleAdd = () => {
-        if (localValue.trim()) {
-          onAddIngredient(localValue.trim());
-          setLocalValue('');
+        const trimmed = localValue.trim();
+        const errMsg = validateIngredient(trimmed);
+        if (errMsg) {
+          setInputError(errMsg);
+          setTimeout(() => setInputError(''), 2500);
+          return;
         }
+        onAddIngredient(trimmed);
+        setLocalValue('');
+        setInputError('');
       };
 
       return (
@@ -370,10 +395,10 @@
                   ref={inputRef}
                   type="text"
                   value={localValue}
-                  onChange={e => setLocalValue(e.target.value)}
+                  onChange={e => { setLocalValue(e.target.value); if (inputError) setInputError(''); }}
                   onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
                   placeholder="手動輸入，例如：半顆洋蔥..."
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-500 transition-all font-medium"
+                  className={`flex-1 bg-slate-800 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 placeholder-slate-500 transition-all font-medium ${inputError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-slate-700 focus:border-orange-500 focus:ring-orange-500'}`}
                 />
                 <button
                   onClick={handleAdd}
@@ -384,6 +409,7 @@
                   <Plus className="w-6 h-6" />
                 </button>
               </div>
+              {inputError && <div className="flex items-center gap-2 text-amber-200 bg-amber-900/30 p-3 rounded-xl border border-amber-700/50 animate-fade-in text-sm font-medium"><AlertCircle className="w-4 h-4 flex-none" />{inputError}</div>}
               {error && <div className="flex items-center gap-2 text-red-200 bg-red-900/30 p-4 rounded-xl border border-red-800/50"><AlertCircle className="w-5 h-5 flex-none" /><span className="text-sm font-medium">{error}</span></div>}
             </div>
 
