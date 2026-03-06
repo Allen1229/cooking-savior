@@ -260,10 +260,7 @@
         case A.SET_USAGE:
           return { ...state, usage: action.value };
         case A.INC_USAGE: {
-          const newVal = state.usage + 1;
-          const today = new Date().toDateString();
-          localStorage.setItem('cs_usage_data', JSON.stringify({ date: today, count: newVal }));
-          return { ...state, usage: newVal };
+          return state;
         }
         case A.RESET:
           return { ...initialState, usage: state.usage };
@@ -394,7 +391,7 @@
               <div className="flex flex-col items-end gap-2 text-right">
                 <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-slate-500 uppercase px-1">
                   <Zap className="w-3 h-3 text-yellow-500 animate-pulse" />
-                  <span>今日累計救援：<span className="text-orange-400 text-xs">{usage}</span> 次</span>
+                  <span>全網累計救援：<span className="text-orange-400 text-xs">{usage}</span> 次</span>
                 </div>
                 <button onClick={onGenerate} disabled={ingredients.length === 0} className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 disabled:opacity-50 disabled:grayscale text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-orange-900/40 flex items-center gap-2 transform active:scale-95 transition-all">
                   <Flame className="w-5 h-5" /> 生成救援食譜
@@ -553,15 +550,20 @@
       const [state, dispatch] = useReducer(reducer, initialState);
       const { currentStep, ingredients, recipes, selectedRecipe, loadingMessage, error, usage } = state;
 
-      // 初始化加載使用量
-      React.useEffect(() => {
-        const stored = JSON.parse(localStorage.getItem('cs_usage_data') || '{}');
-        const today = new Date().toDateString();
-        if (stored.date === today) {
-          dispatch({ type: A.SET_USAGE, value: stored.count || 0 });
-        } else {
-          localStorage.setItem('cs_usage_data', JSON.stringify({ date: today, count: 0 }));
+      const fetchGlobalUsage = async () => {
+        try {
+          const resp = await fetch('/api/gemini');
+          if (resp.ok) {
+            const data = await resp.json();
+            dispatch({ type: A.SET_USAGE, value: data.count || 0 });
+          }
+        } catch (e) {
+          console.error("Failed to fetch usage", e);
         }
+      };
+
+      React.useEffect(() => {
+        fetchGlobalUsage();
       }, []);
 
       const API_KEY = window.__GEMINI_API_KEY__ || '';
@@ -694,7 +696,7 @@
 
           if (normalizedData.length === 0) throw new Error("未能生成有效食譜");
           dispatch({ type: A.SET_RECIPES, recipes: normalizedData });
-          dispatch({ type: A.INC_USAGE });
+          fetchGlobalUsage();
         } catch (err) {
           console.error("Recipes Gen Error:", err);
           let userFriendlyError = `生成失敗: ${err.message}`;
