@@ -10,12 +10,11 @@ export async function onRequest(context) {
         "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    // 1. 處理預檢請求 (CORS)
     if (request.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
     }
 
-    // 2. 處理 GET 請求：讀取數據
+    // 處理 GET：回傳次數
     if (request.method === "GET") {
         try {
             if (!KV) {
@@ -34,17 +33,18 @@ export async function onRequest(context) {
         }
     }
 
-    // 3. 處理 POST 請求：生成食譜並計數
+    // 處理 POST：生成食譜
     if (request.method === "POST") {
         if (!API_KEY) {
-            return new Response(JSON.stringify({ error: "API_KEY_MISSING" }), {
+            return new Response(JSON.stringify({ error: { message: "API_KEY_MISSING" } }), {
                 status: 500, headers: corsHeaders
             });
         }
 
         try {
             const bodyText = await request.text();
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+            // 切換為 v1 穩定版 URL
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: bodyText,
@@ -52,10 +52,14 @@ export async function onRequest(context) {
 
             const data = await response.json();
 
-            // 成功後更新 KV (背景執行，不影響回傳速度)
+            // 成功後更新 KV
             if (response.ok && data.candidates?.[0] && KV) {
-                let current = await KV.get(USAGE_KEY) || "0";
-                await KV.put(USAGE_KEY, (parseInt(current) + 1).toString());
+                try {
+                    let current = await KV.get(USAGE_KEY) || "0";
+                    await KV.put(USAGE_KEY, (parseInt(current) + 1).toString());
+                } catch (kvErr) {
+                    console.error("KV Update Error:", kvErr);
+                }
             }
 
             return new Response(JSON.stringify(data), {
@@ -63,7 +67,7 @@ export async function onRequest(context) {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         } catch (err) {
-            return new Response(JSON.stringify({ error: "PROXY_ERROR", details: err.message }), {
+            return new Response(JSON.stringify({ error: { message: "PROXY_ERROR: " + err.message } }), {
                 status: 500, headers: corsHeaders
             });
         }

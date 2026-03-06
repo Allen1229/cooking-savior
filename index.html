@@ -554,16 +554,15 @@
       const fetchGlobalUsage = async () => {
         try {
           const resp = await fetch('/api/gemini');
+          // 確保回應是 JSON
           const contentType = resp.headers.get("content-type");
           if (resp.ok && contentType && contentType.includes("application/json")) {
             const data = await resp.json();
             dispatch({ type: A.SET_USAGE, value: data.count || 0 });
-            if (data.status === "KV_MISSING") console.warn("Cloudflare KV Binding is missing!");
-          } else {
-            console.error("Server returned non-JSON response or error. Status:", resp.status);
+            if (data.status === "KV_MISSING") console.warn("Notice: KV Binding is not ready.");
           }
         } catch (e) {
-          console.error("Failed to fetch usage:", e.message);
+          console.error("Fetch Usage Error:", e.message);
         }
       };
 
