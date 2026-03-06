@@ -25,4 +25,5 @@
 - **AI**: Google Gemini Pro (via API)
 
 ## 🔒 安全性說明
-本程式透過 `functions/api/gemini.js` 進行中轉，API Key 僅存在於 Cloudflare 的伺服器端，網頁端不會接觸到金鑰，可防止盜用。
+本程式透過 `functions/api/gemini.js` 進行中轉，API Key 僅存在於 Cloudflare 的伺服器端，網頁端不會接觸到金鑰，可防止盜用。。
+
