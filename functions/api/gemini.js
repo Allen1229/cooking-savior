@@ -44,8 +44,8 @@ export async function onRequest(context) {
 
         try {
             const bodyText = await request.text();
-            // 使用 v1beta + gemini-2.0-flash（支援 responseMimeType）
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+            // 使用 v1beta + gemini-2.5-flash
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: bodyText,
