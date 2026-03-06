@@ -47,6 +47,23 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(249, 115, 22, 0.3);
+      border-radius: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(249, 115, 22, 0.5);
+    }
   </style>
 </head>
 
@@ -428,20 +445,18 @@
                 </div>
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                   <h3 className="text-2xl font-black text-white mb-3 leading-tight group-hover:text-orange-400 transition-colors line-clamp-2 flex-none">{recipe.title}</h3>
-                  <p className="text-slate-400 leading-relaxed mb-3 text-sm border-l-2 border-slate-700 pl-3 line-clamp-3 overflow-hidden">{recipe.desc}</p>
-                  <div className="mt-auto">
-                    <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2">
-                      <Utensils className="w-3 h-3 text-orange-500/70" /> 準備項目
+                  <p className="text-slate-400 leading-relaxed mb-4 text-sm border-l-2 border-slate-700 pl-3 line-clamp-2 flex-none">{recipe.desc}</p>
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    <div className="flex items-center gap-1.5 text-orange-400 text-[10px] font-bold uppercase tracking-widest mb-2 px-1">
+                      <Utensils className="w-3 h-3" /> 準備項目清單
                     </div>
-                    <div className="flex flex-wrap gap-1.5 h-[64px] overflow-hidden content-start">
-                      {recipe.ingredients?.slice(0, 5).map((ing, i) => (
-                        <span key={i} className="text-[10px] bg-slate-900/40 text-slate-300 px-2 py-1 rounded-md border border-slate-700/50 truncate max-w-[100px]">
-                          {ing}
-                        </span>
+                    <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/50 p-3 overflow-y-auto custom-scrollbar space-y-2">
+                      {recipe.ingredients?.map((ing, i) => (
+                        <div key={i} className="text-[11px] text-slate-300 flex items-start gap-2 leading-tight">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500/50 mt-1 flex-none"></span>
+                          <span>{ing}</span>
+                        </div>
                       ))}
-                      {recipe.ingredients?.length > 5 && (
-                        <span className="text-[10px] text-slate-500 font-bold self-center ml-1">+{(recipe.ingredients.length - 5)}</span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -697,8 +712,8 @@
               {currentStep === 'results' && <ResultsPage recipes={recipes} onSelect={r => dispatch({ type: A.SELECT_RECIPE, recipe: r })} onReset={handleReset} />}
               {currentStep === 'detail' && <DetailPage selectedRecipe={selectedRecipe} onBack={() => dispatch({ type: A.BACK_TO_RESULTS })} />}
             </main>
-            <div className="flex-none py-1 px-4 text-[10px] text-slate-600 font-mono text-right bg-slate-900/50">
-              Cooking Savior Build v2.0 | Stable
+            <div className="absolute bottom-2 right-4 z-[9999] text-[10px] sm:text-xs font-black text-orange-500/80 drop-shadow-[0_0_5px_rgba(249,115,22,0.5)] pointer-events-none">
+              Cooking Savior V1.3.6
             </div>
           </div>
         </div>
