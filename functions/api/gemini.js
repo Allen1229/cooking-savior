@@ -1,27 +1,4 @@
-// 處理 GET 請求：獲取全網計數
-export async function onRequestGet(context) {
-    const { env } = context;
-    const KV = env.CS_USAGE_KV;
-    const USAGE_KEY = "global_usage_count";
-
-    const corsHeaders = {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json",
-    };
-
-    try {
-        if (!KV) {
-            return new Response(JSON.stringify({ count: 0, warning: "KV 未綁定" }), { headers: corsHeaders });
-        }
-        let count = await KV.get(USAGE_KEY) || "0";
-        return new Response(JSON.stringify({ count: parseInt(count) }), { headers: corsHeaders });
-    } catch (e) {
-        return new Response(JSON.stringify({ count: 0, error: e.message }), { headers: corsHeaders });
-    }
-}
-
-// 處理 POST 請求：發送到 Gemini API
-export async function onRequestPost(context) {
+export async function onRequest(context) {
     const { request, env } = context;
     const KV = env.CS_USAGE_KV;
     const USAGE_KEY = "global_usage_count";
@@ -29,42 +6,68 @@ export async function onRequestPost(context) {
 
     const corsHeaders = {
         "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    if (!API_KEY) {
-        return new Response(JSON.stringify({ error: "伺服器未設定 GEMINI_API_KEY" }), { status: 500, headers: corsHeaders });
+    // 1. 處理預檢請求 (CORS)
+    if (request.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders });
     }
 
-    try {
-        const bodyText = await request.text();
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: bodyText,
-        });
+    // 2. 處理 GET 請求：讀取數據
+    if (request.method === "GET") {
+        try {
+            if (!KV) {
+                return new Response(JSON.stringify({ count: 0, status: "KV_MISSING" }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" }
+                });
+            }
+            let count = await KV.get(USAGE_KEY) || "0";
+            return new Response(JSON.stringify({ count: parseInt(count), status: "OK" }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        } catch (e) {
+            return new Response(JSON.stringify({ count: 0, status: "ERROR", msg: e.message }), {
+                status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        }
+    }
 
-        const data = await response.json();
-
-        // 成功生成後，異步更新 KV 次數
-        if (response.ok && data.candidates?.[0] && KV) {
-            let current = await KV.get(USAGE_KEY) || "0";
-            await KV.put(USAGE_KEY, (parseInt(current) + 1).toString());
+    // 3. 處理 POST 請求：生成食譜並計數
+    if (request.method === "POST") {
+        if (!API_KEY) {
+            return new Response(JSON.stringify({ error: "API_KEY_MISSING" }), {
+                status: 500, headers: corsHeaders
+            });
         }
 
-        return new Response(JSON.stringify(data), { status: response.status, headers: corsHeaders });
-    } catch (err) {
-        return new Response(JSON.stringify({ error: "中介伺服器失敗：" + err.message }), { status: 500, headers: corsHeaders });
-    }
-}
+        try {
+            const bodyText = await request.text();
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: bodyText,
+            });
 
-// 處理跨域預檢
-export async function onRequestOptions() {
-    return new Response(null, {
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        },
-    });
+            const data = await response.json();
+
+            // 成功後更新 KV (背景執行，不影響回傳速度)
+            if (response.ok && data.candidates?.[0] && KV) {
+                let current = await KV.get(USAGE_KEY) || "0";
+                await KV.put(USAGE_KEY, (parseInt(current) + 1).toString());
+            }
+
+            return new Response(JSON.stringify(data), {
+                status: response.status,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        } catch (err) {
+            return new Response(JSON.stringify({ error: "PROXY_ERROR", details: err.message }), {
+                status: 500, headers: corsHeaders
+            });
+        }
+    }
+
+    return new Response("Method Not Allowed", { status: 405 });
 }
