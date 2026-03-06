@@ -206,6 +206,7 @@
       selectedRecipe: null,
       loadingMessage: '',
       error: '',
+      usage: 0,
     };
 
     const A = {
@@ -216,6 +217,7 @@
       START_COOKING: 'SC', SET_RECIPES: 'SR',
       SELECT_RECIPE: 'SEL', BACK_TO_RESULTS: 'BTR',
       SET_ERROR: 'SE', RESET: 'RST',
+      SET_USAGE: 'SU', INC_USAGE: 'IU',
     };
 
     const reducer = (state, action) => {
@@ -255,8 +257,16 @@
           return { ...state, selectedRecipe: null, currentStep: 'results' };
         case A.SET_ERROR:
           return { ...state, error: action.error || action.message, currentStep: action.step || state.currentStep };
+        case A.SET_USAGE:
+          return { ...state, usage: action.value };
+        case A.INC_USAGE: {
+          const newVal = state.usage + 1;
+          const today = new Date().toDateString();
+          localStorage.setItem('cs_usage_data', JSON.stringify({ date: today, count: newVal }));
+          return { ...state, usage: newVal };
+        }
         case A.RESET:
-          return { ...initialState };
+          return { ...initialState, usage: state.usage };
         default:
           return state;
       }
@@ -311,7 +321,7 @@
       </div>
     ));
 
-    const IngredientsPage = React.memo(({ ingredients, error, onUpload, onRemove, onAddIngredient, onGenerate, onReset }) => {
+    const IngredientsPage = React.memo(({ ingredients, usage, error, onUpload, onRemove, onAddIngredient, onGenerate, onReset }) => {
       const [localValue, setLocalValue] = React.useState('');
       const inputRef = React.useRef(null);
 
@@ -379,11 +389,17 @@
               {error && <div className="flex items-center gap-2 text-red-200 bg-red-900/30 p-4 rounded-xl border border-red-800/50"><AlertCircle className="w-5 h-5 flex-none" /><span className="text-sm font-medium">{error}</span></div>}
             </div>
 
-            <div className="flex-none p-6 pt-4 border-t border-slate-800 flex justify-between items-center bg-slate-900">
-              <button onClick={onReset} className="text-slate-400 hover:text-white px-4 py-2 transition-colors text-sm font-medium">重新開始</button>
-              <button onClick={onGenerate} disabled={ingredients.length === 0} className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 disabled:opacity-50 disabled:grayscale text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-orange-900/40 flex items-center gap-2 transform active:scale-95 transition-all">
-                <Flame className="w-5 h-5" /> 生成救援食譜
-              </button>
+            <div className="flex-none p-6 pt-4 border-t border-slate-800 flex justify-between items-end bg-slate-900">
+              <button onClick={onReset} className="text-slate-400 hover:text-white px-4 py-2 transition-colors text-sm font-medium mb-1">重新開始</button>
+              <div className="flex flex-col items-end gap-2 text-right">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-slate-500 uppercase px-1">
+                  <Zap className="w-3 h-3 text-yellow-500 animate-pulse" />
+                  <span>今日累計救援：<span className="text-orange-400 text-xs">{usage}</span> 次</span>
+                </div>
+                <button onClick={onGenerate} disabled={ingredients.length === 0} className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 disabled:opacity-50 disabled:grayscale text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-orange-900/40 flex items-center gap-2 transform active:scale-95 transition-all">
+                  <Flame className="w-5 h-5" /> 生成救援食譜
+                </button>
+              </div>
             </div>
           </div>
 
@@ -535,7 +551,18 @@
 
     const CookingSavior = () => {
       const [state, dispatch] = useReducer(reducer, initialState);
-      const { currentStep, ingredients, recipes, selectedRecipe, loadingMessage, error } = state;
+      const { currentStep, ingredients, recipes, selectedRecipe, loadingMessage, error, usage } = state;
+
+      // 初始化加載使用量
+      React.useEffect(() => {
+        const stored = JSON.parse(localStorage.getItem('cs_usage_data') || '{}');
+        const today = new Date().toDateString();
+        if (stored.date === today) {
+          dispatch({ type: A.SET_USAGE, value: stored.count || 0 });
+        } else {
+          localStorage.setItem('cs_usage_data', JSON.stringify({ date: today, count: 0 }));
+        }
+      }, []);
 
       const API_KEY = window.__GEMINI_API_KEY__ || '';
       // 部署到 Github 後透過 Cloudflare 代理，此處設定 true 就不會在瀏覽器暴露金鑰
@@ -667,6 +694,7 @@
 
           if (normalizedData.length === 0) throw new Error("未能生成有效食譜");
           dispatch({ type: A.SET_RECIPES, recipes: normalizedData });
+          dispatch({ type: A.INC_USAGE });
         } catch (err) {
           console.error("Recipes Gen Error:", err);
           let userFriendlyError = `生成失敗: ${err.message}`;
@@ -701,6 +729,7 @@
               {currentStep === 'ingredients' && (
                 <IngredientsPage
                   ingredients={ingredients}
+                  usage={usage}
                   error={error}
                   onUpload={handleFileUpload}
                   onRemove={handleRemove}
@@ -713,7 +742,7 @@
               {currentStep === 'detail' && <DetailPage selectedRecipe={selectedRecipe} onBack={() => dispatch({ type: A.BACK_TO_RESULTS })} />}
             </main>
             <div className="absolute bottom-2 right-4 z-[9999] text-[10px] sm:text-xs font-black text-orange-500/80 drop-shadow-[0_0_5px_rgba(249,115,22,0.5)] pointer-events-none">
-              Cooking Savior V1.3.6
+              Cooking Savior V1.3.7
             </div>
           </div>
         </div>
