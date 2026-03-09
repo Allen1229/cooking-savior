@@ -595,7 +595,7 @@
       const handleReset = React.useCallback(() => dispatch({ type: A.RESET }), []);
       const handleManual = React.useCallback(() => dispatch({ type: A.GO_TO_INGREDIENTS }), []);
 
-      const callGemini = async (prompt, images = [], jsonMode = false) => {
+      const callGemini = async (prompt, images = [], jsonMode = false, isRescue = false) => {
         if (!USE_PROXY && !API_KEY) throw new Error('未設定 API Key');
 
         const parts = [{ text: prompt }];
@@ -611,7 +611,12 @@
           : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
         const resp = await fetch(requestUrl, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(isRescue && { 'X-CS-Type': 'rescue' })
+          },
+          body: JSON.stringify(payload)
         });
         if (!resp.ok) {
           const errorData = await resp.json().catch(() => ({}));
@@ -654,6 +659,7 @@
           } else {
             dispatch({ type: A.GO_TO_INGREDIENTS });
           }
+          fetchGlobalUsage();
         } catch (err) {
           dispatch({ type: A.SET_ERROR, message: '分析失敗，請手動輸入', step: 'ingredients' });
         }
@@ -677,7 +683,7 @@
              - ingredients: 包含份量與切法的字串陣列
              - steps: 包含量化步驟的字串陣列`;
 
-          const responseText = await callGemini(prompt, [], true);
+          const responseText = await callGemini(prompt, [], true, true);
           console.log("Raw Response:", responseText);
 
           let list = [];

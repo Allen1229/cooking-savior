@@ -53,8 +53,9 @@ export async function onRequest(context) {
 
             const data = await response.json();
 
-            // 成功後更新 KV
-            if (response.ok && data.candidates?.[0] && KV) {
+            // 成功後更新 KV (只在食譜生成時更新，分辨標頭 X-CS-Type: rescue)
+            const isRescue = request.headers.get("X-CS-Type") === "rescue";
+            if (response.ok && data.candidates?.[0] && KV && isRescue) {
                 try {
                     let current = await KV.get(USAGE_KEY) || "0";
                     await KV.put(USAGE_KEY, (parseInt(current) + 1).toString());
