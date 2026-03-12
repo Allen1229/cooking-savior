@@ -534,8 +534,19 @@
   });
 
     const DetailPage = React.memo(({ selectedRecipe, onBack }) => {
+      const [copied, setCopied] = React.useState(false);
+
       if (!selectedRecipe) return null;
       const { theme, color, icon: lg } = getDifficultyTheme(selectedRecipe.difficulty);
+
+      const handleCopySteps = (e) => {
+        e.stopPropagation();
+        const stepsText = `【${selectedRecipe.title}】作戰步驟：\n` + (selectedRecipe.steps || []).map((step, idx) => `${idx + 1}. ${step}`).join('\n');
+        navigator.clipboard.writeText(stepsText).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      };
 
       return (
         <div className="flex flex-col h-full animate-fade-in w-full bg-slate-950 relative overflow-hidden">
@@ -562,7 +573,20 @@
                 <p className="text-slate-300 italic text-lg leading-relaxed bg-slate-800/30 p-6 rounded-2xl border-t-4 border-orange-500 shadow-lg">"{selectedRecipe.desc}"</p>
               </div>
               <div className="space-y-10">
-                <div className="flex items-center gap-4 mb-6"><div className="h-10 w-1.5 bg-gradient-to-b from-orange-500 to-red-600 rounded-full"></div><h3 className="text-2xl font-black text-white tracking-wide">作戰步驟</h3></div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4"><div className="h-10 w-1.5 bg-gradient-to-b from-orange-500 to-red-600 rounded-full"></div><h3 className="text-2xl font-black text-white tracking-wide">作戰步驟</h3></div>
+                  <button
+                    onClick={handleCopySteps}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors border ${copied ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-white'}`}
+                    title="複製步驟"
+                  >
+                    {copied ? (
+                      <React.Fragment><CheckCircle className="w-4 h-4" /><span className="text-xs font-bold">已複製</span></React.Fragment>
+                    ) : (
+                      <React.Fragment><Icon className="w-4 h-4"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></Icon><span className="text-xs font-bold">複製</span></React.Fragment>
+                    )}
+                  </button>
+                </div>
                 <div className="space-y-8 relative">
                   <div className="absolute left-[27px] top-4 bottom-4 w-0.5 bg-slate-800 -z-10"></div>
                   {selectedRecipe.steps.map((step, idx) => (
